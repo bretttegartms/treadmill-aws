@@ -18,9 +18,18 @@ def get_ipa_server_from_dns(domain):
                            'SRV')]
     return random.choice(raw_results).split()[-1]
 
+def get_cell_attribute(root_zone, cell_name, attribute):
+    """ Retrieves cell attributes from DNS """
+    result = dns.resolver.query('_{}.{}.{}'.format(attribute, 
+                                              cell_name,
+                                              root_zone),
+                                'TXT')
+    return result.to_text()
 
 class IPAClient():
-    """ Interfaces with freeIPA API to register and deregister hosts """
+    """ Interfaces with freeIPA API to register and deregister hosts 
+        and cell DNS records
+    """
 
     def __init__(self, domain, certs):
         self.domain = domain
@@ -77,3 +86,14 @@ class IPAClient():
         return [result
                 for hosts in resp['result']['result']
                 for result in hosts['fqdn']]
+
+    def set_cell_attribute(self, root_zone, cell_name, attribute, value):
+        """ Sets cell attribute as a TXT record in DNS """
+        record_name = '_{}.{}'.format(attribute, cell_name)
+        payload = {'method': 'dnsrecord_add',
+                   'params': [{'dnszoneidnsname': root_zone,
+                               'idnsname': record_name,
+                               'txtrecord': value,
+                               'version': _API_VERSION}],
+                   'id': 0}
+        return self._post(payload=payload).json()
