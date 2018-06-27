@@ -17,6 +17,7 @@ def create_instance(ec2_conn, user_data, image_id, instance_type,
         'InstanceType': instance_type,
         'KeyName': key,
         'UserData': user_data,
+        'Monitoring': {'Enabled': True},
         'NetworkInterfaces': [{
             'DeviceIndex': 0,
             'SubnetId': subnet_id,
