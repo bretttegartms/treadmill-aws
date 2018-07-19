@@ -54,6 +54,8 @@ def create_host(ec2_conn, ipa_client, image_id, count, domain,
     if hostname is None:
         hostname = '{}-{}'.format(role.lower(), '{time}')
 
+    instance_vars['treadmill_isa'] = role
+
     hosts = []
     for _ in range(count):
         host_ctx = instance_vars.copy()
