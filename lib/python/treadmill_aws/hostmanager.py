@@ -181,7 +181,6 @@ def find_hosts(ipa_client, pattern=None):
     """
     if pattern is None:
         pattern = ''
-
     return ipa_client.get_hosts(
         pattern=pattern
     )

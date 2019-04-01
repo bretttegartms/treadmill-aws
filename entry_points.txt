@@ -9,10 +9,11 @@ aws = treadmill_aws.plugins.profile
 
 [treadmill.rest.api]
 aws-image = treadmill_aws.rest.api.image
+aws-instance = treadmill_aws.rest.api.host
 
 [treadmill.api]
 aws-image = treadmill_aws.api.image
-
+aws-instance = treadmill_aws.api.host
 
 [treadmill.image.native.fs]
 aws = treadmill_aws.plugins.fs.aws:MinimalAWSFilesystemPlugin
@@ -41,6 +42,7 @@ deploy = treadmill_aws.cli.admin.cell.deploy
 
 [treadmill_aws.cli.aws]
 image = treadmill_aws.cli.aws.image
+instance = treadmill_aws.cli.aws.instance
 
 [treadmill_aws.cli.admin.aws]
 subnet = treadmill_aws.cli.admin.aws.subnet

@@ -25,7 +25,10 @@ class API:
                  secgroup=None,
                  subnet=None):
 
-        self._account = str(account)
+        if account:
+            self._account = str(account)
+        else:
+            self._account = 'self'
         self._instance_profile = instance_profile
         self._secgroup = secgroup
         self._subnet = subnet

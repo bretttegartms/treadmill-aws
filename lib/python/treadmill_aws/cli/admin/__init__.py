@@ -9,7 +9,7 @@ def image_id(ec2_conn, sts_conn, image, account):
     if not image and metadata.image_id():
         image = {'ids': [metadata.image_id()]}
     if not account:
-        account = sts_conn.get_caller_identity().get('Account')
+        account = 'self'
     return ec2client.get_image(ec2_conn, owners=[account], **image)['ImageId']
 
 
