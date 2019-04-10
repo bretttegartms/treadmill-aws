@@ -66,12 +66,18 @@ def init():
         '--account', required=False,
         help='Image account, defaults to current.'
     )
+    @click.option(
+        '--tags',
+        type=cli.DICT,
+        required=False,
+        help='Image tag in the format foo=bar,baz=qux'
+    )
     @click.argument(
         'image',
         required=False,
         type=aws_cli.IMAGE
     )
-    def configure(account, image):
+    def configure(account, image, tags):
         """Configure AMI image."""
         if not image:
             image = {'ids': [metadata.image_id()]}
@@ -82,8 +88,20 @@ def init():
         if not account:
             account = 'self'
 
+        if not tags:
+            tags = {}
+
+        image_tags = [{'ResourceType': 'instance',
+               'Tags': [{'Key': key, 'Value': val}
+                        for key, val in tags.items()]
+               }]
+
         image_obj = ec2client.get_image(ec2_conn, owners=[account], **image)
-        cli.out(formatter(image_obj))
+        image_mod = ec2client.configure_image(ec2_conn,
+                                              image_mod,
+                                              image_tags,
+                                              owners=[account])
+        cli.out(formatter(image_mod))
 
     @image.command(name='create')
     @click.option(
