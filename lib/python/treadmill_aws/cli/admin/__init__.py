@@ -4,13 +4,29 @@ from treadmill_aws import ec2client
 from treadmill_aws import metadata
 
 
-def image_id(ec2_conn, image, account):
+def image_id(ec2_conn, image, account, image_tag=None):
     """Resolve CLI image arguments to image id."""
-    if not image and metadata.image_id():
-        image = {'ids': [metadata.image_id()]}
     if not account:
         account = 'self'
-    return ec2client.get_image(ec2_conn, owners=[account], **image)['ImageId']
+
+    if image:
+        return ec2client.get_image(ec2_conn,
+                                   owners=[account],
+                                   **image)['ImageId']
+
+    # Return newest image with matching tags
+    if image_tag:
+        images = ec2client.list_images(ec2_conn=ec2_conn,
+                                       owners=[account],
+                                       tags=image_tag,
+                                       **image)['ImageId']
+        return images.pop()
+
+    if metadata.image_id():
+        image = {'ids': [metadata.image_id()]}
+        return ec2client.get_image(ec2_conn,
+                                   owners=[account],
+                                   **image)['ImageId']
 
 
 def subnet_id(ec2_conn, subnet):

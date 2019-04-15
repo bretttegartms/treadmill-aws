@@ -8,6 +8,7 @@ from __future__ import unicode_literals
 
 import gzip
 import io
+import sys
 
 import click
 
@@ -19,6 +20,7 @@ from treadmill_aws import metadata
 from treadmill_aws import cli as aws_cli
 from treadmill_aws import userdata as ud
 
+_WAIT_TIMEOUT=600
 
 # pylint: disable=too-many-statements
 def init():
@@ -88,13 +90,15 @@ def init():
     @image.command(name='create')
     @click.option(
         '--base-image',
-        required=True,
         type=aws_cli.IMAGE,
         help='Base image.'
     )
     @click.option(
+        '--base-image-tags',
+        help='Use newest image with tags. Fmt: foo=bar,baz=qaz'
+    )
+    @click.option(
         '--base-image-account',
-        required=False,
         help='Base image account.'
     )
     @click.option(
@@ -106,7 +110,6 @@ def init():
     )
     @click.option(
         '--instance-profile',
-        required=True,
         help='Instance profile with create image privs.'
     )
     @click.option(
@@ -128,15 +131,22 @@ def init():
     @click.option(
         '--tags',
         type=cli.DICT,
-        required=False,
         help='Image tag in the format foo=bar,baz=qux'
     )
-    @click.argument('image', required=True, type=str)
+    @click.option(
+        '--wait',
+        help='Exit on image creation'
+    )
+    @click.argument('image')
     @cli.admin.ON_EXCEPTIONS
-    def create(base_image, base_image_account, userdata, instance_profile,
-               secgroup, subnet, image, key, tags):
+    def create(base_image, base_image_tags, base_image_account, image, key,
+               instance_profile, secgroup, subnet, tags, userdata, wait):
         """Create image"""
         ec2_conn = awscontext.GLOBAL.ec2
+
+        if not base_image and not base_image_tags:
+            raise click.BadParameter(
+                'Must pass --base-image or --base-image-tags!')
 
         cloud_init = ud.CloudInit()
         for filename in userdata:
@@ -153,15 +163,20 @@ def init():
         })
 
         base_image_id = aws_cli.admin.image_id(
-            ec2_conn, base_image, account=base_image_account)
+            account=base_image_account,
+            ec2_conn=ec2_conn,
+            image=base_image,
+            image_tag={'Tags': [{'Key': key, 'Value': val}
+                                 for key, val in base_image_tags.items()]}
+            )
+
+        cli.out(base_image_id)
         secgroup_id = aws_cli.admin.secgroup_id(ec2_conn, secgroup)
         subnet_id = aws_cli.admin.subnet_id(ec2_conn, subnet)
 
-        tags['Name'] = 'ImageBuild-{}'.format(image)
-        image_tags = [{'ResourceType': 'instance',
-                       'Tags': [{'Key': key, 'Value': val}
-                                for key, val in tags.items()]
-                       }]
+        tags = [{'ResourceType': 'instance',
+                 'Tags': [{'Key': 'Name',
+                           'Value': 'ImageBuild-{}'.format(image)}]}]
 
         instance = ec2client.create_instance(
             ec2_conn,
@@ -169,13 +184,15 @@ def init():
             image_id=base_image_id,
             instance_type='t2.small',
             key=key,
-            tags=image_tags,
+            tags=tags,
             secgroup_ids=secgroup_id,
             subnet_id=subnet_id,
             instance_profile=instance_profile,
             disk=10
         )
         click.echo(instance['Instances'][0]['InstanceId'])
+        if wait:
+            pass
 
     @image.command(name='create-from-snapshot')
     @click.option('--snapshot',
@@ -216,6 +233,8 @@ def init():
 
         image = ec2_conn.register_image(**kwargs)
         print(image['ImageId'])
+        if wait:
+            pass
 
     @image.command(name='share')
     @click.option(
