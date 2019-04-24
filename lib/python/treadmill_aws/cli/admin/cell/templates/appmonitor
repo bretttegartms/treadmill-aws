@@ -18,7 +18,8 @@ services:
     unset PYTHONPATH;
     mkdir -p /var/tmp/treadmill/alerts
     exec /opt/treadmill/bin/treadmill sproc \
-        alert-monitor --approot /var/tmp/treadmill
+        alert-monitor --approot /var/tmp/treadmill \
+        --plugin sns
   restart:
     limit: 5
     interval: 60
