@@ -263,15 +263,8 @@ def create_zk(
     if not instance_profile:
         instance_profile = 'zk-server'
 
-    # Instance vars
-    instance_vars = {
-        'instance_profile': instance_profile,
-        'treadmill_cell': context.GLOBAL.cell,
-        'treadmill_ldap': ','.join(context.GLOBAL.ldap.url),
-        'treadmill_ldap_suffix': context.GLOBAL.ldap_suffix,
-        'treadmill_dns_domain': context.GLOBAL.dns_domain,
+    user_data = {
         'treadmill_isa': 'zookeeper',
-        'treadmill_profile': 'aws',
         'treadmill_krb_realm': krb5.get_host_realm(sysinfo.hostname())[0],
         'treadmill_zookeeper_myid': str(master['idx']),
         'treadmill_zookeeper_admins': ','.join(set([cell['username'],
@@ -331,3 +324,70 @@ def replace_zk(ec2_conn, instance_profile, ipa_client, master, old_master):
                      master=master,
                      instance_type=old_master.get('InstanceType', None),
                      subnet_id=old_master.get('SubnetId', None))
+
+
+def create_infra(
+        ec2_conn,
+        ipa_client,
+        instance_profile,
+        role,
+        server,
+        user_data,
+        subnet_id=None,
+        ip_address=None,
+        instance_type=None):
+    """ Create new Zookeeper """
+    ipa_domain = awscontext.GLOBAL.ipa_domain
+
+    admin_cell = admin.Cell(context.GLOBAL.ldap.conn)
+    cell = admin_cell.get(context.GLOBAL.cell)
+    data = cell['data']
+
+    image_id = data['image']
+    if not image_id.startswith('ami-'):
+        image_id = ec2client.get_image(
+            ec2_conn, owners=['self'], name=image_id
+        )['ImageId']
+
+    # FIXME; subnet not unique, not AZ aware
+    if not subnet_id:
+        subnet_id = random.choice(data['subnets'])
+
+    shortname = master['hostname'].replace('.' + context.GLOBAL.dns_domain, '')
+
+    if not instance_type:
+        instance_type = 'm5.large'
+
+    if not instance_profile:
+        instance_profile = role
+
+    # Instance vars
+    instance_vars = {
+        'instance_profile': instance_profile,
+        'treadmill_cell': context.GLOBAL.cell,
+        'treadmill_ldap': ','.join(context.GLOBAL.ldap.url),
+        'treadmill_ldap_suffix': context.GLOBAL.ldap_suffix,
+        'treadmill_dns_domain': context.GLOBAL.dns_domain,
+        'treadmill_profile': 'aws',
+    }
+    instance_vars.update(user_data)
+
+    # Build user-data and start new instance
+    create_host(ec2_conn=ec2_conn,
+                ipa_client=ipa_client,
+                image_id=image_id,
+                count=1,
+                domain=ipa_domain,
+                secgroup_ids=data['secgroup'],
+                instance_type=instance_type,
+                subnet=subnet_id,
+                disk=30,
+                instance_vars=instance_vars,
+                role=role,
+                hostgroups=[role],
+                hostname=shortname,
+                ip_address=ip_address)
+
+    return master['hostname']
+
+
