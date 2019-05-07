@@ -57,6 +57,8 @@ def init():
             account = 'self'
         if not image:
             image = {}
+        if not match:
+            match = {}
 
         images = ec2client.list_images(ec2_conn,
                                        owners=[account],
@@ -147,6 +149,9 @@ def init():
         if not base_image and not base_image_tags:
             raise click.BadParameter(
                 'Must pass --base-image or --base-image-tags!')
+
+        if not base_image_tags:
+            base_image_tags={}
 
         cloud_init = ud.CloudInit()
         for filename in userdata:
